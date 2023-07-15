@@ -12,7 +12,7 @@ from scipy.interpolate import griddata
 
 from era5 import ERA5
 
-ERA5_API_KEY = ""
+ERA5_API_KEY = "YOUR_API_KEY"
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 STATION_INFO_FP = os.path.join(STATIC_DIR, "station_info.csv")
 TMP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tmp")
@@ -65,15 +65,17 @@ def parse_obs_data(data, sid):
                 break
     except (KeyError, TypeError):
         return False
-
-    return {
-        "sid": sid,
-        "datetime": dt,
-        "wind_speed": wind_speed,
-        "wind_direction": wind_direction,
-        "temperature": temperature,
-        "humidity": humidity,
-    }
+    else:
+        if wind_speed > 9000 or temperature > 9000:
+            return False
+        return {
+            "sid": sid,
+            "datetime": dt,
+            "wind_speed": wind_speed,
+            "wind_direction": wind_direction,
+            "temperature": temperature,
+            "humidity": humidity,
+        }
 
 
 def prepare_observation():

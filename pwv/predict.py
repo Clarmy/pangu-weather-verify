@@ -6,7 +6,6 @@ from datetime import datetime, timedelta, timezone
 
 import numpy as np
 
-# import onnx
 import onnxruntime as ort
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
@@ -22,8 +21,8 @@ def predict(input_surface_fp, input_upper_fp, step_mode=24, gpu=False):
 
     assert input_surf_ts == input_upper_ts
 
-    new_surf_ts = int(input_surf_ts) + step_mode + 3600
-    new_upper_ts = int(input_upper_ts) + step_mode + 3600
+    new_surf_ts = int(input_surf_ts) + step_mode * 3600
+    new_upper_ts = int(input_upper_ts) + step_mode * 3600
 
     output_surface_fp = os.path.join(
         os.path.dirname(input_surface_fp), f"surface-{new_surf_ts}.npy"

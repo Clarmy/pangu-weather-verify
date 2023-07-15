@@ -12,7 +12,7 @@ from scipy.interpolate import griddata
 
 from era5 import ERA5
 
-ERA5_API_KEY = "" # 输入你自己的 CDS API Key
+ERA5_API_KEY = ""
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 STATION_INFO_FP = os.path.join(STATIC_DIR, "station_info.csv")
 TMP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tmp")
@@ -45,7 +45,7 @@ def get_station_info():
     return df
 
 
-def parse_obs_data(data):
+def parse_obs_data(data, sid):
     try:
         for passedchart in data["passedchart"]:
             timestr = passedchart["time"]
@@ -67,6 +67,7 @@ def parse_obs_data(data):
         return False
 
     return {
+        "sid": sid,
         "datetime": dt,
         "wind_speed": wind_speed,
         "wind_direction": wind_direction,
@@ -94,7 +95,7 @@ def prepare_observation():
         if resp.ok:
             data = resp.json()["data"]
             if data:
-                parsed_data = parse_obs_data(data)
+                parsed_data = parse_obs_data(data, sid)
                 if parsed_data:
                     records.append(parsed_data)
                     dt = parsed_data["datetime"]
@@ -262,7 +263,8 @@ def transfer_upper(infp, outfp):
     array = []
     for v in VAR_ORDER:
         print(f"Processing {v}...")
-        data = ds.variables[v][0].data.astype(np.float32)
+        # reverse the vertical axis
+        data = ds.variables[v][0, ::-1].data.astype(np.float32)
         array.append(data)
 
     array = np.stack(array)
@@ -290,10 +292,8 @@ def prepare_all():
     timestamp = int(era5_dt.timestamp())
     input_surface_fp = os.path.join(TMP_DIR, f"surface-{timestamp}.npy")
     transfer_surface(surfacefp, input_surface_fp)
-    os.remove(surfacefp)
     input_upper_fp = os.path.join(TMP_DIR, f"upper-{timestamp}.npy")
     transfer_upper(upperfp, input_upper_fp)
-    os.remove(upperfp)
     print("Prepare work has been completed, you can continue to start prediction work.")
 
     return {

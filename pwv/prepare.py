@@ -148,6 +148,7 @@ def download_file_in_chunks(url, dest_path, chunk_size=1024):
 
 
 def download_ecmwf_data(dt_batch: datetime, dt_obs: datetime):
+    print("Downloading the ECMWF forecast field...")
     delta_hour = int((dt_obs - dt_batch).total_seconds() // 3600)
     step = delta_hour // 3 * 3
     if delta_hour - step > 1:
@@ -168,6 +169,35 @@ def download_ecmwf_data(dt_batch: datetime, dt_obs: datetime):
         print("Completed.")
 
         return ecmwf_fp
+
+
+def download_gfs_data(dt_obs: datetime):
+    print("Downloading GFS forecast field...")
+    dt_batch = dt_obs.astimezone(timezone.utc).replace(hour=dt_obs.hour // 6 * 6)
+    URL_PATTERN = "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25_1hr.pl?dir=%2Fgfs.{datestr}%2F{hourstr}%2Fatmos&file=gfs.t12z.pgrb2.0p25.f{step}&var_TMP=on&var_UGRD=on&var_VGRD=on&lev_2_m_above_ground=on&lev_10_m_above_ground=on"
+    while True:
+        delta_hour = int((dt_obs - dt_batch).total_seconds() // 3600)
+        datestr = dt_batch.strftime("%Y%m%d")
+        hourstr = dt_batch.strftime("%H")
+        if delta_hour <= 120:
+            step = f"{delta_hour:03d}"
+        else:
+            step = delta_hour // 3 * 3
+            if delta_hour - step > 1:
+                step += 3
+            step = f"{step:03d}"
+
+        url = URL_PATTERN.format(datestr=datestr, hourstr=hourstr, step=step)
+        resp = requests.get(url, timeout=10, stream=True)
+        if resp.ok:
+            fn = f"gfs.t{hourstr}z.pgrb2.0p25.f{step}.grb"
+            gfs_fp = os.path.join(TMP_DIR, fn)
+            res = download_file_in_chunks(url, gfs_fp)
+            if res:
+                print("Completed.")
+                return gfs_fp, dt_batch
+
+        dt_batch -= timedelta(hours=6)
 
 
 def interpolate(lons, lats, data):
@@ -202,6 +232,7 @@ def download_era5_data(api_key):
 def transfer_ecmwf(grib2_fp):
     messages = pygrib.open(grib2_fp)
     surface_dataset = {}
+    print("Start transfering ECMWF data...")
     for varname, conditions in SURFACE_FIELD_CONDITIONS.items():
         print(f"Processing {varname}...")
         msg = messages.select(**conditions)[0]
@@ -216,6 +247,30 @@ def transfer_ecmwf(grib2_fp):
 
     surface_array = np.stack(surface_array)
     savefp = os.path.join(TMP_DIR, "surface-ecmwf.npy")
+    np.save(savefp, surface_array)
+
+    print("Finished.")
+
+    return savefp
+
+
+def transfer_gfs(grib2_fp):
+    messages = pygrib.open(grib2_fp)
+    surface_dataset = {}
+    print("Start transfering GFS data...")
+    for varname, conditions in SURFACE_FIELD_CONDITIONS.items():
+        print(f"Processing {varname}...")
+        msg = messages.select(**conditions)[0]
+
+        data, _, _ = msg.data()
+        surface_dataset[varname] = data
+
+    surface_array = []
+    for varname in SURFACE_FIELD_ORDER:
+        surface_array.append(surface_dataset[varname])
+
+    surface_array = np.stack(surface_array)
+    savefp = os.path.join(TMP_DIR, "surface-gfs.npy")
     np.save(savefp, surface_array)
 
     print("Finished.")
@@ -272,6 +327,10 @@ def prepare_all():
         dt_batch -= timedelta(hours=1)
 
     ecmwfarray_fp = transfer_ecmwf(ecmwfp)
+
+    gfs_fp, gfs_batch_dt = download_gfs_data(dt_obs)
+    gfsarray_fp = transfer_gfs(gfs_fp)
+
     surfacefp, upperfp, era5_dt = download_era5_data(ERA5_API_KEY)
     timestamp = int(era5_dt.timestamp())
     input_surface_fp = os.path.join(TMP_DIR, f"surface-{timestamp}.npy")
@@ -282,10 +341,12 @@ def prepare_all():
 
     return {
         "ecmwfarray_fp": ecmwfarray_fp,
+        "gfsarray_fp": gfsarray_fp,
         "input_surface_fp": input_surface_fp,
         "input_upper_fp": input_upper_fp,
         "obs_dt": dt_obs,
         "ecmwf_batch_dt": dt_batch,
+        'gfs_batch_dt': gfs_batch_dt,
         "era5_dt": era5_dt,
     }
 

@@ -7,4 +7,4 @@ pandas
 loguru
 cyeva
 toml
-pyproj
+pyproj==3.5.0

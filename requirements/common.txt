@@ -1,5 +1,9 @@
+arrow
 numpy
 onnx
 cdsapi
 netCDF4
 pandas
+loguru
+cyeva
+toml

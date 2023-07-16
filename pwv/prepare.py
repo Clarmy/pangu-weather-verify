@@ -7,12 +7,12 @@ import netCDF4 as nc
 import pandas as pd
 import requests
 import pygrib
+import toml
 from tqdm import tqdm
 from scipy.interpolate import griddata
 
 from era5 import ERA5
 
-ERA5_API_KEY = "YOUR_API_KEY"
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 STATION_INFO_FP = os.path.join(STATIC_DIR, "station_info.csv")
 TMP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tmp")
@@ -20,21 +20,14 @@ OBS_DATA_URL_PATTERN = "http://www.nmc.cn/rest/weather?stationid={sid}"
 ECMWF_DATA_DIR_URL_PATTERN = "https://data.ecmwf.int/forecasts/%Y%m%d/%Hz/0p4-beta/oper"
 
 SURFACE_FIELD_CONDITIONS = {
-    "mslp": {"shortName": "msl", "typeOfLevel": "meanSea"},
     "t2m": {"shortName": "2t", "typeOfLevel": "heightAboveGround"},
     "u10": {"shortName": "10u", "typeOfLevel": "heightAboveGround"},
     "v10": {"shortName": "10v", "typeOfLevel": "heightAboveGround"},
 }
-SURFACE_FIELD_ORDER = ["mslp", "u10", "v10", "t2m"]
-
-UPPER_LEVELS = [1000, 925, 850, 700, 600, 500, 400, 300, 250, 200, 150, 100, 50]
-UPPER_FIELD_CONDITIONS = {}
-UPPER_FIELD_ORDER = ["gh", "q", "t", "u", "v"]
-
-for field in ["q", "t", "gh", "u", "v"]:
-    UPPER_FIELD_CONDITIONS[field] = [
-        {"shortName": field, "level": lev} for lev in UPPER_LEVELS
-    ]
+SURFACE_FIELD_ORDER = ["u10", "v10", "t2m"]
+ERA5_API_KEY = toml.load(os.path.join(os.path.dirname(__file__), "secret.toml"))[
+    "cds_api_key"
+]
 
 os.makedirs(TMP_DIR, exist_ok=True)
 
@@ -144,10 +137,14 @@ def check_ecmwf_dir_exist(dt: datetime):
 
 def download_file_in_chunks(url, dest_path, chunk_size=1024):
     r = requests.get(url, stream=True)
-    with open(dest_path, "wb") as f:
-        for chunk in r.iter_content(chunk_size=chunk_size):
-            if chunk:
-                f.write(chunk)
+    if r.ok:
+        with open(dest_path, "wb") as f:
+            for chunk in r.iter_content(chunk_size=chunk_size):
+                if chunk:
+                    f.write(chunk)
+        return True
+    else:
+        return None
 
 
 def download_ecmwf_data(dt_batch: datetime, dt_obs: datetime):
@@ -156,7 +153,7 @@ def download_ecmwf_data(dt_batch: datetime, dt_obs: datetime):
     if delta_hour - step > 1:
         step += 3
 
-    url = dt_obs.astimezone(timezone.utc).strftime(
+    url = dt_batch.astimezone(timezone.utc).strftime(
         os.path.join(ECMWF_DATA_DIR_URL_PATTERN, f"%Y%m%d%H%M%S-{step}h-oper-fc.grib2")
     )
 
@@ -164,20 +161,27 @@ def download_ecmwf_data(dt_batch: datetime, dt_obs: datetime):
         "Downloading the ECMWF forecast field closest to the observation time, "
         f"the forecast step is：{step}h"
     )
-    ecmwf_fp = os.path.join(TMP_DIR, "ecmwf-forecast.grib2")
-    download_file_in_chunks(url, ecmwf_fp)
-    print("Completed.")
+    fn = os.path.basename(url)
+    ecmwf_fp = os.path.join(TMP_DIR, fn)
+    res = download_file_in_chunks(url, ecmwf_fp)
+    if res:
+        print("Completed.")
 
-    return ecmwf_fp
+        return ecmwf_fp
 
 
 def interpolate(lons, lats, data):
     # data, lats, lons = msg.data()
+    length = lons.shape[1]
+    if lons.min() < 0:
+        lons[..., : int(length / 2)] = lons[..., : int(length / 2)] + 360
+
+    # np.concatenate([lons[720:], lons[:720]], axis=1)
     data1d = data.flatten()
     lats1d = lats.flatten()
     lons1d = lons.flatten()
 
-    points = np.array([lats1d, lons1d]).T
+    points = np.array([lons1d, lats1d]).T
     new_x = np.linspace(0, 359.75, 1440)
     new_y = np.linspace(90, -90, 721)
 
@@ -201,6 +205,7 @@ def transfer_ecmwf(grib2_fp):
     for varname, conditions in SURFACE_FIELD_CONDITIONS.items():
         print(f"Processing {varname}...")
         msg = messages.select(**conditions)[0]
+
         data, lats, lons = msg.data()
         data = interpolate(lons, lats, data)
         surface_dataset[varname] = data
@@ -210,39 +215,12 @@ def transfer_ecmwf(grib2_fp):
         surface_array.append(surface_dataset[varname])
 
     surface_array = np.stack(surface_array)
-    np.save(os.path.join(TMP_DIR, "surface.npy"), surface_array)
-
-    upper_dataset = {}
-    for varname, conditions in UPPER_FIELD_CONDITIONS.items():
-        array = []
-        for condition in conditions:
-            lev = condition["level"]
-            print(f"Processing {varname} at {lev}...")
-            try:
-                msg = messages.select(**condition)[0]
-            except ValueError as err:
-                print(condition)
-                raise err
-            data, lats, lons = msg.data()
-            if varname == "gh":
-                print(f"gh0.mean(): {data.mean()}")
-                data = data * 9.80665
-                print(f"gh1.mean(): {data.mean()}")
-
-            data = interpolate(lons, lats, data)
-            array.append(data)
-
-        array = np.stack(array)
-        upper_dataset[varname] = array
-
-    upper_array = []
-    for varname in UPPER_FIELD_ORDER:
-        upper_array.append(upper_dataset[varname])
-
-    upper_array = np.stack(upper_array)
-    np.save(os.path.join(TMP_DIR, "upper.npy"), upper_array)
+    savefp = os.path.join(TMP_DIR, "surface-ecmwf.npy")
+    np.save(savefp, surface_array)
 
     print("Finished.")
+
+    return savefp
 
 
 def transfer_surface(infp, outfp):
@@ -286,10 +264,14 @@ def prepare_all():
                 "Found the ECMWF forecast batch closest to the observation time, "
                 f"the start time of which is：{dt_batch.isoformat()}"
             )
-            break
+            ecmwfp = download_ecmwf_data(dt_batch, dt_obs)
+            if ecmwfp:
+                break
+            else:
+                print("Failed to download the file from this batch, try again.")
         dt_batch -= timedelta(hours=1)
 
-    ecmwfp = download_ecmwf_data(dt_batch, dt_obs)
+    ecmwfarray_fp = transfer_ecmwf(ecmwfp)
     surfacefp, upperfp, era5_dt = download_era5_data(ERA5_API_KEY)
     timestamp = int(era5_dt.timestamp())
     input_surface_fp = os.path.join(TMP_DIR, f"surface-{timestamp}.npy")
@@ -299,7 +281,7 @@ def prepare_all():
     print("Prepare work has been completed, you can continue to start prediction work.")
 
     return {
-        "ecmwfp": ecmwfp,
+        "ecmwfarray_fp": ecmwfarray_fp,
         "input_surface_fp": input_surface_fp,
         "input_upper_fp": input_upper_fp,
         "obs_dt": dt_obs,

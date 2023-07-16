@@ -4,8 +4,11 @@ from verify import verify
 
 if __name__ == "__main__":
     prepare_result = prepare_all()
+    ecmwfarray_fp = prepare_result["ecmwfarray_fp"]
     era5_dt = prepare_result["era5_dt"]
     obs_dt = prepare_result["obs_dt"]
-    predict_result = iteratively_predict(int(era5_dt.timestamp()), int(obs_dt.timestamp()))
+    predict_result = iteratively_predict(
+        int(era5_dt.timestamp()), int(obs_dt.timestamp())
+    )
     surface_fp = predict_result["surface_fp"]
-    verify(surface_fp)
+    verify(surface_fp, ecmwfarray_fp)

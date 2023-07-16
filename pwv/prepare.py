@@ -83,7 +83,7 @@ def prepare_observation():
     for sid in tqdm(sids):
         URL = OBS_DATA_URL_PATTERN.format(sid=sid)
         try:
-            resp = requests.get(URL, timeout=3)
+            resp = requests.get(URL, timeout=10)
         except Exception:
             url_error_list.append(sid)
             continue

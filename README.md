@@ -16,3 +16,110 @@
 
 ### ECMWF 预报数据
 ECMWF 的预报产品有多种品类，本项目使用的是其中对外免费公开的实时预报数据集，获取渠道可以参考[这里](https://confluence.ecmwf.int/display/DAC/ECMWF+open+data:+real-time+forecasts)。本项目中 ECMWF 的实时预报数据作为盘古模型的对比预报数据（陪跑），用于对比盘古模型的预报效果。
+
+### GFS 预报数据
+我们使用 0.25 度分辨率的 GFS 预报数据作为另一个陪跑的对比预报，GFS 的获取链接：[这里](https://nomads.ncep.noaa.gov/gribfilter.php?ds=gfs_0p25_1hr)。
+
+## 使用方法
+本项目不作为一个包的形式进行分发，因此如果你想运行我们项目的代码，就需要将本项目代码克隆到本地。
+```bash
+$ git clone https://github.com/Clarmy/pangu-weather-verify
+```
+建议使用 conda 创建虚拟环境：
+```bash
+$ conda create -n pwv -y python=3.8
+$ conda activate pwv
+```
+有一些包我们从 conda 进行安装会方便一些：
+```bash
+$ conda install -y -c conda-forge pygrib
+```
+其他包我们可以直接使用 pip 进行批量安装：
+```bash
+$ pip install -r requirements/cpu.txt # CPU 版本
+$ pip install -r requirements/gpu.txt # GPU 版本
+```
+配置 cds 的 api_key，先将自己的 api_key 填入 `pwv/secret.toml.template` 文件中：
+```toml
+cds_api_key = 'xxxxx:d76c469b-xxxx-yyyy-zzzz-fac92ea9f5f8'
+```
+然后将 `pwv/secret.toml.template` 改名为 `pwv/secret.toml` 即可完成配置。
+执行任务：
+```bash
+$ python pwv/main.py
+```
+剩下的交给时间即可，最终结果在当前目录会生成两个文件: `compare.csv` 和 `verification_results.json`，其中 `compare.csv` 存储的是三套预报以及观测数据在每个观测站点上的对比列表。`verification_results.json` 存储的是每个观测站点上的检验指标结果，例如：
+```json
+{
+    "pangu": {
+        "temperature": {
+            "rmse": 2.7101,
+            "mae": 2.0384,
+            "accuracy_ratio_within_1deg": 32.3782,
+            "accuracy_ratio_within_2deg": 59.0735,
+            "accuracy_ratio_within_3deg": 78.51
+        },
+        "wind": {
+            "speed_rmse": 1.7176,
+            "speed_mae": 1.2681,
+            "speed_accuracy_ratio_within_1ms": 51.1939,
+            "speed_accuracy_ratio_within_2ms": 79.6084,
+            "speed_accuracy_ratio_within_3ms": 93.2187,
+            "scale_stronger_ratio": 36.0554,
+            "scale_weaker_ratio": 25.5014,
+            "scale_accuracy": 38.4432,
+            "speed_score": 0.7185,
+            "direction_score": 0.4326
+        },
+        "init_time": "2023-07-11T16:00:00+00:00",
+        "forecast_hour_delta": 119
+    },
+    "ecmwf": {
+        "temperature": {
+            "rmse": 2.6694,
+            "mae": 2.0125,
+            "accuracy_ratio_within_1deg": 31.7574,
+            "accuracy_ratio_within_2deg": 60.9838,
+            "accuracy_ratio_within_3deg": 78.7966
+        },
+        "wind": {
+            "speed_rmse": 1.6073,
+            "speed_mae": 1.1812,
+            "speed_accuracy_ratio_within_1ms": 52.9131,
+            "speed_accuracy_ratio_within_2ms": 84.4317,
+            "speed_accuracy_ratio_within_3ms": 94.2216,
+            "scale_stronger_ratio": 34.8615,
+            "scale_weaker_ratio": 24.4508,
+            "scale_accuracy": 40.9742,
+            "speed_score": 0.7326,
+            "direction_score": 0.456
+        },
+        "init_time": "2023-07-16T00:00:00+00:00",
+        "forecast_hour_delta": 15
+    },
+    "gfs": {
+        "temperature": {
+            "rmse": 3.2771,
+            "mae": 2.5773,
+            "accuracy_ratio_within_1deg": 22.6361,
+            "accuracy_ratio_within_2deg": 46.4183,
+            "accuracy_ratio_within_3deg": 66.8099
+        },
+        "wind": {
+            "speed_rmse": 1.6419,
+            "speed_mae": 1.2061,
+            "speed_accuracy_ratio_within_1ms": 54.0115,
+            "speed_accuracy_ratio_within_2ms": 81.4231,
+            "speed_accuracy_ratio_within_3ms": 93.362,
+            "scale_stronger_ratio": 35.9121,
+            "scale_weaker_ratio": 21.5377,
+            "scale_accuracy": 42.5979,
+            "speed_score": 0.7402,
+            "direction_score": 0.4563
+        },
+        "init_time": "2023-07-16T12:00:00+00:00",
+        "forecast_hour_delta": 3
+    },
+    "observation_datetime": "2023-07-16T15:00:00+00:00"
+}
+```

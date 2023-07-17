@@ -45,7 +45,13 @@ cds_api_key = 'xxxxx:d76c469b-xxxx-yyyy-zzzz-fac92ea9f5f8'
 ```
 然后将 `pwv/secret.toml.template` 改名为 `pwv/secret.toml` 即可完成配置。
 
-下载模型文件，我们需要将模型文件存放在 `pwv/static` 目录下，`static` 内的文件结构如下：
+下载模型文件：
+* pangu_weather_1.onnx: [Google云盘](https://drive.google.com/file/d/1fg5jkiN_5dHzKb-5H9Aw4MOmfILmeY-S/view?usp=share_link)/[百度网盘](https://pan.baidu.com/s/1M7SAigVsCSH8hpw6DE8TDQ?pwd=ie0h)
+* pangu_weather_3.onnx: [Google云盘](https://drive.google.com/file/d/1EdoLlAXqE9iZLt9Ej9i-JW9LTJ9Jtewt/view?usp=share_link)/[百度网盘](https://pan.baidu.com/s/197fZsoiCqZYzKwM7tyRrfg?pwd=gmcl)
+* pangu_weather_6.onnx: [Google云盘](https://drive.google.com/file/d/1a4XTktkZa5GCtjQxDJb_fNaqTAUiEJu4/view?usp=share_link)/[百度网盘](https://pan.baidu.com/s/1q7IB7tNjqIwoGC7KVMPn4w?pwd=vxq3)
+* pangu_weather_24.onnx: [Google云盘](https://drive.google.com/file/d/1lweQlxcn9fG0zKNW8ne1Khr9ehRTI6HP/view?usp=share_link)/[百度网盘](https://pan.baidu.com/s/179q2gkz2BrsOR6g3yfTVQg?pwd=eajy)
+
+我们需要将模型文件存放在 `pwv/static` 目录下，`static` 内的文件结构如下：
 ```bash
 .
 ├── pangu_weather_1.onnx

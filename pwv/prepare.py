@@ -13,7 +13,7 @@ import arrow
 from tqdm import tqdm
 from scipy.interpolate import griddata
 
-from era5 import ERA5
+from pwv.era5 import ERA5
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 STATION_INFO_FP = os.path.join(STATIC_DIR, "station_info.csv")
@@ -128,7 +128,7 @@ def prepare_observation():
         f"the observation time is: {dt.isoformat()} "
     )
 
-    return dt
+    return dt, len(df)
 
 
 def check_ecmwf_dir_exist(dt: datetime):
@@ -317,7 +317,7 @@ def transfer_upper(infp, outfp):
 
 
 def prepare_all():
-    dt_obs = prepare_observation()
+    dt_obs, obs_count = prepare_observation()
 
     dt_batch = dt_obs
     print("Searching for the ECMWF forecast batch closest to the observation time.")
@@ -357,6 +357,7 @@ def prepare_all():
         "ecmwf_batch_dt": dt_batch,
         "gfs_batch_dt": gfs_batch_dt,
         "era5_dt": era5_dt,
+        "obs_count": obs_count,
     }
 
 

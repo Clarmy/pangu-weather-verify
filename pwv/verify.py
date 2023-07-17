@@ -1,5 +1,6 @@
 import os
 import json
+from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
@@ -210,6 +211,8 @@ def verify(
     obs_dt,
     ecmwf_batch_dt,
     gfs_batch_dt,
+    obs_count,
+    forward_records,
 ):
     print("Verifying...")
     df_predict = extract_station_forecast_data(
@@ -245,9 +248,13 @@ def verify(
             "gfs_wind_direction",
         ]
     ]
-    df.to_csv("./compare.csv", index=False)
+
+    dtstr = datetime.now(tz=timezone.utc).astimezone(timezone.utc).strftime("%Y%m%d%HZ")
+    os.makedirs("./results", exist_ok=True)
+    df.to_csv(f"./results/compare-{dtstr}.csv", index=False)
 
     pangu_result = sinlge_verify(df, era5_dt, obs_dt, "pangu")
+    pangu_result.update({"forward_records": forward_records})
     ec_result = sinlge_verify(df, ecmwf_batch_dt, obs_dt, "ec")
     gfs_result = sinlge_verify(df, gfs_batch_dt, obs_dt, "gfs")
 
@@ -256,9 +263,10 @@ def verify(
         "ecmwf": ec_result,
         "gfs": gfs_result,
         "observation_datetime": obs_dt.isoformat(),
+        "observation_count": obs_count,
     }
 
-    with open("./verification_results.json", "w") as f:
+    with open(f"./results/verification_results-{dtstr}.json", "w") as f:
         json.dump(
             result,
             f,

@@ -21,7 +21,7 @@ ECMWF 的预报产品有多种品类，本项目使用的是其中对外免费�
 我们使用 0.25 度分辨率的 GFS 预报数据作为另一个陪跑的对比预报，GFS 的获取链接：[这里](https://nomads.ncep.noaa.gov/gribfilter.php?ds=gfs_0p25_1hr)。
 
 ## 使用方法
-本项目不作为一个包的形式进行分发，因此如果你想运行我们项目的代码，就需要将本项目代码克隆到本地。
+本项目不作为 pip 包分发，您需要将本项目代码克隆到本地。
 ```bash
 $ git clone https://github.com/Clarmy/pangu-weather-verify.git
 ```
@@ -39,6 +39,11 @@ $ conda install -y -c conda-forge pygrib
 $ pip install -r requirements/cpu.txt # CPU 版本
 $ pip install -r requirements/gpu.txt # GPU 版本
 ```
+将本项目以包的形式安装：
+```bash
+$ python setup.py install
+```
+
 配置 cds 的 api_key，先将自己的 api_key 填入 `pwv/secret.toml.template` 文件中：
 ```toml
 cds_api_key = 'xxxxx:d76c469b-xxxx-yyyy-zzzz-fac92ea9f5f8'
@@ -61,11 +66,18 @@ cds_api_key = 'xxxxx:d76c469b-xxxx-yyyy-zzzz-fac92ea9f5f8'
 └── station_info.csv
 ```
 
-执行任务：
+如果您只想做一次测评，可以执行任务：
 ```bash
 $ python pwv/main.py
 ```
-剩下的交给时间即可，最终结果在当前目录会生成两个文件: `compare.csv` 和 `verification_results.json`，其中 `compare.csv` 存储的是三套预报以及观测数据在每个观测站点上的对比列表。`verification_results.json` 存储的是每个观测站点上的检验指标结果，例如：
+剩下的交给时间即可，最终结果在当前目录会新建一个 `resullts` 的目录，目录内生成两个文件: `compare-*.csv` 和 `verification_results-*.json`，其中 `compare-*.csv` 存储的是三套预报以及观测数据在每个观测站点上的对比列表。`verification_results-*.json` 存储的是每个观测站点上的检验指标结果。
+
+如果您想每小时做一次测评，可以执行任务：
+```bash
+$ python scheduler.py
+```
+
+以下是一次测评的结果 `verification_results-*.json` 文件的内容：
 ```json
 {
     "pangu": {

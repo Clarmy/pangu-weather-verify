@@ -86,6 +86,7 @@ def iteratively_predict(init_timestamp, target_timestamp):
     steps = {24: 24 * 3600, 6: 6 * 3600, 3: 3 * 3600, 1: 1 * 3600}
     timestamp = init_timestamp
 
+    forward_records = []
     while timestamp < target_timestamp:
         delta_hour = int((target_timestamp - timestamp) // 3600)
 
@@ -104,11 +105,16 @@ def iteratively_predict(init_timestamp, target_timestamp):
                     t1 = time.perf_counter()
                     print(f"Done. Time elapsed: {t1 - t0:.2f}s")
                     timestamp += interval
+                    forward_records.append(step)
                 break  # 当找到适合的步长并处理后，跳出当前循环进入下一个循环
 
     print("All done.")
 
-    return {"surface_fp": input_surface_fp, "upper_fp": input_upper_fp}
+    return {
+        "surface_fp": input_surface_fp,
+        "upper_fp": input_upper_fp,
+        "forward_records": forward_records,
+    }
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 import os
+import time
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 
@@ -8,6 +9,7 @@ import pandas as pd
 import requests
 import pygrib
 import toml
+import arrow
 from tqdm import tqdm
 from scipy.interpolate import griddata
 
@@ -38,7 +40,7 @@ def get_station_info():
     return df
 
 
-def parse_obs_data(data, sid):
+def parse_obs_data(data, sid, ts):
     try:
         for passedchart in data["passedchart"]:
             timestr = passedchart["time"]
@@ -48,7 +50,7 @@ def parse_obs_data(data, sid):
                 .astimezone(timezone.utc)
             )
             # 取 ECMWF 的预报点
-            if dt.hour % 3 != 0:
+            if int(dt.timestamp()) != ts:
                 continue
             else:
                 wind_speed = passedchart["windSpeed"]
@@ -56,6 +58,8 @@ def parse_obs_data(data, sid):
                 temperature = passedchart["temperature"]
                 humidity = passedchart["humidity"]
                 break
+        else:
+            return False
     except (KeyError, TypeError):
         return False
     else:
@@ -80,17 +84,22 @@ def prepare_observation():
     records = []
     dts = []
     print("Downloading observation data...")
+    now_dt = arrow.now(tz="utc").floor("hour")
+    round3dt = now_dt.replace(hour=now_dt.hour // 3 * 3)
+    want_dt = round3dt.shift(hours=-3)
+    want_ts = int(want_dt.timestamp())
+
     for sid in tqdm(sids):
-        URL = OBS_DATA_URL_PATTERN.format(sid=sid)
+        URL = OBS_DATA_URL_PATTERN.format(sid=sid) + f"&_={int(time.time()*1000)}"
         try:
-            resp = requests.get(URL, timeout=10)
+            resp = requests.get(URL, timeout=5)
         except Exception:
             url_error_list.append(sid)
             continue
         if resp.ok:
             data = resp.json()["data"]
             if data:
-                parsed_data = parse_obs_data(data, sid)
+                parsed_data = parse_obs_data(data, sid, want_ts)
                 if parsed_data:
                     records.append(parsed_data)
                     dt = parsed_data["datetime"]
@@ -346,7 +355,7 @@ def prepare_all():
         "input_upper_fp": input_upper_fp,
         "obs_dt": dt_obs,
         "ecmwf_batch_dt": dt_batch,
-        'gfs_batch_dt': gfs_batch_dt,
+        "gfs_batch_dt": gfs_batch_dt,
         "era5_dt": era5_dt,
     }
 

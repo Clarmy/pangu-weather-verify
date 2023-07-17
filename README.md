@@ -44,6 +44,17 @@ $ pip install -r requirements/gpu.txt # GPU 版本
 cds_api_key = 'xxxxx:d76c469b-xxxx-yyyy-zzzz-fac92ea9f5f8'
 ```
 然后将 `pwv/secret.toml.template` 改名为 `pwv/secret.toml` 即可完成配置。
+
+下载模型文件，我们需要将模型文件存放在 `pwv/static` 目录下，`static` 内的文件结构如下：
+```bash
+.
+├── pangu_weather_1.onnx
+├── pangu_weather_24.onnx
+├── pangu_weather_3.onnx
+├── pangu_weather_6.onnx
+└── station_info.csv
+```
+
 执行任务：
 ```bash
 $ python pwv/main.py

@@ -14,6 +14,7 @@ from tqdm import tqdm
 from scipy.interpolate import griddata
 
 from pwv.era5 import ERA5
+from retrying import retry
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 STATION_INFO_FP = os.path.join(STATIC_DIR, "station_info.csv")
@@ -30,8 +31,6 @@ SURFACE_FIELD_ORDER = ["u10", "v10", "t2m"]
 ERA5_API_KEY = toml.load(os.path.join(os.path.dirname(__file__), "secret.toml"))[
     "cds_api_key"
 ]
-
-os.makedirs(TMP_DIR, exist_ok=True)
 
 
 def get_station_info():
@@ -131,6 +130,7 @@ def prepare_observation():
     return dt, len(df)
 
 
+@retry(stop_max_attempt_number=7)
 def check_ecmwf_dir_exist(dt: datetime):
     url = dt.astimezone(timezone.utc).strftime(ECMWF_DATA_DIR_URL_PATTERN)
     try:
@@ -156,8 +156,8 @@ def download_file_in_chunks(url, dest_path, chunk_size=1024):
         return None
 
 
+@retry(stop_max_attempt_number=7)
 def download_ecmwf_data(dt_batch: datetime, dt_obs: datetime):
-    print("Downloading the ECMWF forecast field...")
     delta_hour = int((dt_obs - dt_batch).total_seconds() // 3600)
     step = delta_hour // 3 * 3
     if delta_hour - step > 1:
@@ -180,14 +180,18 @@ def download_ecmwf_data(dt_batch: datetime, dt_obs: datetime):
         return ecmwf_fp
 
 
+@retry(stop_max_attempt_number=7)
 def download_gfs_data(dt_obs: datetime):
     print("Downloading GFS forecast field...")
-    dt_batch = dt_obs.astimezone(timezone.utc).replace(hour=dt_obs.hour // 6 * 6)
-    URL_PATTERN = "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25_1hr.pl?dir=%2Fgfs.{datestr}%2F{hourstr}%2Fatmos&file=gfs.t12z.pgrb2.0p25.f{step}&var_TMP=on&var_UGRD=on&var_VGRD=on&lev_2_m_above_ground=on&lev_10_m_above_ground=on"
+    dt_batch = dt_obs.astimezone(timezone.utc).replace(
+        hour=dt_obs.astimezone(timezone.utc).hour // 6 * 6
+    )
+    URL_PATTERN = "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25_1hr.pl?dir=%2Fgfs.{datestr}%2F{hourstr}%2Fatmos&file=gfs.t{hourstr}z.pgrb2.0p25.f{step}&var_TMP=on&var_UGRD=on&var_VGRD=on&lev_2_m_above_ground=on&lev_10_m_above_ground=on"
     while True:
         delta_hour = int((dt_obs - dt_batch).total_seconds() // 3600)
         datestr = dt_batch.strftime("%Y%m%d")
         hourstr = dt_batch.strftime("%H")
+        print(f"Checking {dt_batch}")
         if delta_hour <= 120:
             step = f"{delta_hour:03d}"
         else:
@@ -197,6 +201,7 @@ def download_gfs_data(dt_obs: datetime):
             step = f"{step:03d}"
 
         url = URL_PATTERN.format(datestr=datestr, hourstr=hourstr, step=step)
+        print(f"Downloading from {url}")
         resp = requests.get(url, timeout=10, stream=True)
         if resp.ok:
             fn = f"gfs.t{hourstr}z.pgrb2.0p25.f{step}.grb"
@@ -230,6 +235,7 @@ def interpolate(lons, lats, data):
     return new_data
 
 
+@retry(stop_max_attempt_number=7)
 def download_era5_data(api_key):
     era5 = ERA5(api_key)
     surface_fp, dt = era5.fetch_latest_surface(TMP_DIR)
@@ -317,6 +323,8 @@ def transfer_upper(infp, outfp):
 
 
 def prepare_all():
+    os.makedirs(TMP_DIR, exist_ok=True)
+
     dt_obs, obs_count = prepare_observation()
 
     dt_batch = dt_obs

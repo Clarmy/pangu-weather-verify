@@ -250,8 +250,9 @@ def verify(
     ]
 
     dtstr = datetime.now(tz=timezone.utc).astimezone(timezone.utc).strftime("%Y%m%d%HZ")
+    obs_dtstr = obs_dt.astimezone(timezone.utc).strftime("%Y%m%d%HZ")
     os.makedirs("./results", exist_ok=True)
-    df.to_csv(f"./results/compare-{dtstr}.csv", index=False)
+    df.to_csv(f"./results/compare-{obs_dtstr}-at-{dtstr}.csv", index=False)
 
     pangu_result = sinlge_verify(df, era5_dt, obs_dt, "pangu")
     pangu_result.update({"forward_records": forward_records})
@@ -266,15 +267,13 @@ def verify(
         "observation_count": obs_count,
     }
 
-    with open(f"./results/verification_results-{dtstr}.json", "w") as f:
+    with open(f"./results/verification-results-{obs_dtstr}-at-{dtstr}.json", "w") as f:
         json.dump(
             result,
             f,
             indent=4,
         )
-    print(
-        'Verification has been done and results are saved to "./verification_results.json".'
-    )
+    print("All done.")
 
 
 if __name__ == "__main__":

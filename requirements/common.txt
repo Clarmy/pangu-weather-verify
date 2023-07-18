@@ -8,3 +8,6 @@ loguru
 cyeva
 toml
 pyproj==3.5.0
+scipy
+retrying
+tqdm

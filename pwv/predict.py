@@ -71,8 +71,6 @@ def predict(input_surface_fp, input_upper_fp, step_mode=24, gpu=False):
     )
 
     # Save the results
-    # output_surface_fp, output_upper_fp = input_surface_fp, input_upper_fp
-
     np.save(output_upper_fp, output_upper_array)
     np.save(output_surface_fp, output_surface_array)
 

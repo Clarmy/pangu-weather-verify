@@ -1,4 +1,7 @@
 # pangu-weather-verify
+
+[![cc-by-nc-sa-shield](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+
 本项目将提供一套简洁有效的流程来对盘古气象模型以及 ECMWF、GFS 的预报效果进行检验对比，以验证盘古模型在真实气象场中的预报效果。
 
 ## 背景

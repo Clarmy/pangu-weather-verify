@@ -20,7 +20,7 @@ STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 STATION_INFO_FP = os.path.join(STATIC_DIR, "station_info.csv")
 TMP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tmp")
 OBS_DATA_URL_PATTERN = "http://www.nmc.cn/rest/weather?stationid={sid}"
-ECMWF_DATA_DIR_URL_PATTERN = "https://data.ecmwf.int/forecasts/%Y%m%d/%Hz/0p4-beta/oper"
+ECMWF_DATA_DIR_URL_PATTERN = "https://data.ecmwf.int/forecasts/%Y%m%d/%Hz/ifs/0p25/oper"
 
 SURFACE_FIELD_CONDITIONS = {
     "t2m": {"shortName": "2t", "typeOfLevel": "heightAboveGround"},
